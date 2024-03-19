@@ -1,0 +1,326 @@
+int ENA = 5; //Enable Channel A
+int ENB = 6; // Enable Channel B
+
+int leftPin1 = 7; // Left Channel Pinouts
+int leftPin2 = 8;
+int rightPin1 = 9; // Right Channel Pinouts
+int rightPin2 = 11;
+
+int trigPin = 13; // Ultrasound pinouts
+int echoPin = 12;
+
+bool tooClose = false;
+
+float lDistance; //Ultrasound detected distances
+float rDistance;
+float mDistance;
+
+char optimalDirection = 'M'; //Optimal direction to turn
+
+
+#include <Servo.h>
+Servo sonarServo;
+
+
+  
+
+float velocity; //User inputted velocity(ideally b/w 0.25m/s to 0.75m/s)
+int wv; // Analog Speed out for wheels(calculated by plotting velocity-analog out graph)
+
+
+ void setup() {
+  
+  Serial.begin(9600);
+  Serial.println(optimalDirection);
+
+  pinMode(leftPin1,OUTPUT); // Defines motor pinouts as output
+  pinMode(leftPin2,OUTPUT);
+  pinMode(rightPin1,OUTPUT);
+  pinMode(rightPin2,OUTPUT);
+
+  pinMode(ENA,OUTPUT); //Defines Channels as output
+  pinMode(ENB,OUTPUT);
+
+  velocity = 0.5;
+  wv=computeVelocity();
+
+  analogWrite(ENA,wv);
+  analogWrite(ENB,wv);
+  
+  sonarServo.attach(10);
+
+  pinMode(trigPin,OUTPUT);
+  pinMode(echoPin,INPUT);
+
+  sonarServo.write(105);
+
+  start();
+
+}
+  
+ void start() {
+  analogWrite(ENA,wv); //Sets channel speed to wv
+  analogWrite(ENB,wv);
+}
+
+ void loop() {
+    patrol();
+ }
+ 
+int computeVelocity() {
+   return (velocity/0.003);
+  }
+
+  void patrol() {
+   mDistance = rangeFind(0,105);
+   Serial.println(mDistance);
+   
+   if (mDistance <= 30.00) {
+     redirect();
+     mDistance = rangeFind(0,105);
+     Serial.println(mDistance);
+     }
+   
+   if (mDistance >= 2000.00) {
+    Serial.println("Ping not recieved");
+    redirect();
+    mDistance = rangeFind(0,105);
+    Serial.println(mDistance);
+   }
+
+   /*if (mDistance-(rangeFind(0,105)) <= 1.0) {
+     redirect();
+     mDistance = rangeFind(0,105);
+     Serial.println(mDistance);
+     } */
+    
+    start();
+    forward(0.1);
+
+  }
+
+
+  void redirect() {
+    stop();
+     sonarSweep();
+     calculateOptimalDirection();
+     Serial.println(optimalDirection);
+     backward(0.05);
+     sonarServo.write(105);
+     if(optimalDirection == 'R') {
+       Serial.println("Turning Right");
+       right(90);
+     } else if(optimalDirection == 'L') {
+       Serial.println("Turning Left");
+       left(90);
+
+     }
+     sonarServo.write(105);
+
+  }
+  
+  void forward(float distance) {
+  
+    float time = distance/velocity*1000;
+    start();
+    digitalWrite(rightPin1,HIGH);
+    digitalWrite(rightPin2,LOW);
+    digitalWrite(leftPin1,HIGH);
+    digitalWrite(leftPin2,LOW);
+    delay(time);
+    stop();
+}
+
+  void backward(float distance) {
+    
+    float time = distance/velocity*1000;
+    start();
+    digitalWrite(rightPin1,LOW);
+    digitalWrite(rightPin2,HIGH);
+    digitalWrite(leftPin1,LOW);
+    digitalWrite(leftPin2,HIGH);
+    delay(time);
+    stop();
+}
+void setSpeed(int speed) {
+  analogWrite(ENA,speed);
+  analogWrite(ENB,speed);
+}
+
+
+ void left(float degree){ 
+  //angle input in degrees 
+  
+  float time = ((degree+13.667)/410)*890;
+  start();
+  setSpeed(255);
+  digitalWrite(leftPin1,LOW);
+  digitalWrite(leftPin2,LOW);
+  digitalWrite(rightPin1,HIGH);
+  digitalWrite(rightPin2,HIGH);
+  delay(time);
+  stop();
+
+}
+
+ void right(float degree){
+  //angle input in degrees
+  float time = ((degree+13.667)/410)*890;
+  start();
+  setSpeed(255);
+  digitalWrite(leftPin1,HIGH);
+  digitalWrite(leftPin2,HIGH);
+  digitalWrite(rightPin1,LOW);
+  digitalWrite(rightPin2,LOW);
+  delay(time);
+  stop();
+}
+
+ void stop() {
+  digitalWrite(ENA,LOW);
+  digitalWrite(ENB,LOW);
+}
+
+
+ void callibrate(char direction, int time) {
+  //Arguments : F-Forward, B-Backward, L-Left, R-Right
+  //Setpoint = distance travelled by car/callibration distance * x = delay time
+  switch(direction) {
+    case 'F':
+      start();
+      digitalWrite(leftPin1,HIGH);
+      digitalWrite(leftPin2,LOW);
+      digitalWrite(rightPin1,HIGH);
+      digitalWrite(rightPin2,LOW);
+      delay(time);
+      stop();
+      break;
+    
+    case 'B':
+      start();
+      digitalWrite(leftPin1,LOW);
+      digitalWrite(leftPin2,HIGH);
+      digitalWrite(rightPin1,LOW);
+      digitalWrite(rightPin2,HIGH);
+      delay(time);
+      stop();
+      break;
+    
+    case 'L':
+      start();
+      digitalWrite(leftPin1,LOW);
+      digitalWrite(leftPin2,LOW);
+      digitalWrite(rightPin1,HIGH);
+      digitalWrite(rightPin2,HIGH);
+      delay(time);
+      stop();
+      break;
+
+    case 'R':
+      start();
+      digitalWrite(leftPin1,HIGH);
+      digitalWrite(leftPin2,HIGH);
+      digitalWrite(rightPin1,LOW);
+      digitalWrite(rightPin2,LOW);
+      delay(time);
+      stop();
+
+  }
+
+}
+void sonarSweep() {
+  for(int position=30; position<=160; position+=10) {
+    sonarServo.write(position);
+    if(position == 30) {
+      lDistance = rangeFind(0);
+    } else if(position == 105) {
+      mDistance = rangeFind(0);
+    } else {
+      rDistance = rangeFind(0);
+    }
+    delay(10);
+  }
+  
+  /*
+  for(int position=150; position>=50; position--) {
+    if(position == 50) {
+      rDistance = (int)rangeFind(0);
+    } else if(position == 100) {
+      mDistance = (int)rangeFind(0);
+    } else {
+      lDistance = (int)rangeFind(0);
+    }
+    sonarServo.write(position);
+    delay(15);
+  }
+  */
+}
+int rangeFind(int time) {
+    float duration;
+    float cm;
+
+    digitalWrite(trigPin,LOW);
+    delayMicroseconds(2);
+
+    digitalWrite(trigPin,HIGH);
+    delayMicroseconds(5);
+    digitalWrite(trigPin,LOW);
+
+    duration = pulseIn(echoPin,HIGH);
+
+    cm = computeDistance(duration);
+    
+
+    delay(time);
+    return cm;
+  }
+
+
+
+ float computeDistance(float duration) {
+    return duration/29/2;
+  }
+
+  int rangeFind(int time, int position) {
+    float duration;
+    float cm;
+    sonarServo.write(position);
+
+    digitalWrite(trigPin,LOW);
+    delayMicroseconds(1);
+
+    digitalWrite(trigPin,HIGH);
+    delayMicroseconds(5);
+    digitalWrite(trigPin,LOW);
+
+    duration = pulseIn(echoPin,HIGH);
+
+    cm = computeDistance(duration);
+    
+
+    delay(time);
+    return cm;
+
+  }
+void callibrateServo() {
+  int position = sonarServo.read();
+  Serial.println(position);
+  position--;
+  sonarServo.write(position);
+  delay(250);
+}
+
+void calculateOptimalDirection() {
+  
+  if(lDistance > rDistance) {
+    optimalDirection = 'L';
+  } else if(rDistance > lDistance) {
+    optimalDirection = 'R';
+  }
+}
+
+
+ 
+
+
+
