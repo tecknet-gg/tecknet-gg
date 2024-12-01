@@ -3,4 +3,4 @@ Anyways I don't usually ever commit projects publically, but if I have, well don
 Am I good at coding? Of course not, but at the end of the day, who is?
 I "code" in C++(Arduino stuff) and Java.
 I like video games(who doesn't).
-This is all irrelevant, skedaddle, haven't you anything better to do?
+This is all irrelevant, skedaddle, don't you have anything better to do?
