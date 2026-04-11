@@ -1,1 +1,3 @@
-"Can't be asked to fill it in for now :]"
+Very empty right now...
+
+Check out what I'm working on at: https://tecknet.dev !
